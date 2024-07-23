@@ -24,52 +24,58 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Basic Concepts
+# 基本概念
 
-## File Layouts
+## 文件结构
 
-All files of a table are stored under one base directory. Paimon files are organized in a layered style. The following image illustrates the file layout. Starting from a snapshot file, Paimon readers can recursively access all records from the table.
+表的所有文件都存储在一个基本目录下。Paimon 文件以分层的方式组织。下图说明了文件布局。从快照文件开始，Paimon 消费者可以递归地访问表中的所有记录。
 
 {{< img src="/img/file-layout.png">}}
 
-## Snapshot
+## 快照
 
-All snapshot files are stored in the `snapshot` directory.
+所有快照文件都存储在 `snapshot` 目录下。
 
-A snapshot file is a JSON file containing information about this snapshot, including
+快照文件是一个 JSON 文件，其中包含有关该快照的信息，包括
 
-* the schema file in use
-* the manifest list containing all changes of this snapshot
+* 正在使用的 Schema 文件
+* 包含此快照中的所有数据变更的清单列表
 
-A snapshot captures the state of a table at some point in time. Users can access the latest data of a table through the
-latest snapshot. By time traveling, users can also access the previous state of a table through an earlier snapshot.
+快照捕获表在某个时间点的状态。
+用户可以通过最近的快照访问表的最新数据。
+通过时间旅行，用户还可以通过较早的快照访问表的先前状态。
 
-## Manifest Files
 
-All manifest lists and manifest files are stored in the `manifest` directory.
+## 清单文件
 
-A manifest list is a list of manifest file names.
+所有清单列表和清单文件都存储在 `manifest` 目录下。
 
-A manifest file is a file containing changes about LSM data files and changelog files. For example, which LSM data file is created and which file is deleted in the corresponding snapshot.
+清单列表是清单文件名的列表。
 
-## Data Files
+清单文件是包含有关LSM数据文件和更改日志文件的更改的文件。例如，在相应的快照中创建了哪个LSM数据文件，删除了哪个文件。
 
-Data files are grouped by partitions. Currently, Paimon supports using parquet (default), orc and avro as data file's format.
+## 数据文件
 
-## Partition
+数据文件按分区分组。目前 Paimon 支持使用 parquet、orc、avro 作为数据文件格式。默认格式为 parquet。
 
-Paimon adopts the same partitioning concept as Apache Hive to separate data.
+## 分区
 
-Partitioning is an optional way of dividing a table into related parts based on the values of particular columns like date, city, and department. Each table can have one or more partition keys to identify a particular partition.
+Paimon 采用与 Apache Hive 相同的分区概念来分离数据。
 
-By partitioning, users can efficiently operate on a slice of records in the table.
+分区是一种可选的方法，可以根据特定列（如日期、城市和部门）的值将表划分为相关部分。 每个表可以有一个或多个分区键来标识一个特定的分区。
 
-## Consistency Guarantees
+通过分区，用户可以有效地操作表中的记录切片。
 
-Paimon writers use two-phase commit protocol to atomically commit a batch of records to the table. Each commit produces
-at most two [snapshots]({{< ref "concepts/basic-concepts#snapshot" >}}) at commit time. It depends on the incremental write and compaction strategy. If only incremental writes are performed without triggering a compaction operation, only an incremental snapshot will be created. If a compaction operation is triggered, an incremental snapshot and a compacted snapshot will be created.
+## 一致性保证
 
-For any two writers modifying a table at the same time, as long as they do not modify the same partition, their commits 
-can occur in parallel. If they modify the same partition, only snapshot isolation is guaranteed. That is, the final table 
-state may be a mix of the two commits, but no changes are lost.
-See [dedicated compaction job]({{< ref "maintenance/dedicated-compaction#dedicated-compaction-job" >}}) for more info.
+Paimon 生产者使用两阶段提交协议自动将一批记录提交到表中。
+
+取决于增量写入策略和合并策略，每次提交过程在提交时最多产生两个[快照]({{< ref "concepts/basic-concepts#snapshot" >}})：
+
+- 如果只执行增量写操作而不触发合并操作，则只创建增量快照。
+- 如果触发了合并操作，将创建一个增量快照和一个全量快照。
+
+对于任何两个同时修改表的生产者，只要他们不修改同一个分区，他们的提交可以并行进行。
+如果修改的是同一个分区，则只保证快照隔离。
+也就是说，最终的表状态可能是两次提交的混合，但不会丢失任何更改。
+查看[专用压缩作业]({{< ref "maintenance/dedicated-compaction#dedicated-compact -job" >}})了解更多信息。

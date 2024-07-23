@@ -174,18 +174,18 @@ SELECT * FROM t /*+ OPTIONS('scan.file-creation-time-millis' = '1678883047356') 
 
 ### Consumer ID
 
-You can specify the `consumer-id` when streaming read table:
+你可以在流式读表时指定 `'consumer-id'`:
 ```sql
 SELECT * FROM t /*+ OPTIONS('consumer-id' = 'myid') */;
 ```
 
-When stream read Paimon tables, the next snapshot id to be recorded into the file system. This has several advantages:
+当流读取 Paimon 表时，要记录到文件系统中的下一个快照id。这有几个好处:
 
-1. When previous job is stopped, the newly started job can continue to consume from the previous progress without
-   resuming from the state. The newly reading will start reading from next snapshot id found in consumer files. 
-   If you don't want this behavior, you can set `'consumer.ignore-progress'` to true.
-2. When deciding whether a snapshot has expired, Paimon looks at all the consumers of the table in the file system,
-   and if there are consumers that still depend on this snapshot, then this snapshot will not be deleted by expiration.
+1. 当前一个作业停止时，新启动的作业可以继续使用前一个进度，而无需从状态恢复。
+   新的读取将从消费者文件中找到的下一个快照id开始读取。
+   如果你不想要这种行为，你可以设置 `'consumer.ignore-progress'` 为 `true`。
+
+2. 在确定快照是否过期时，Paimon 查看文件系统中表的所有消费者，如果仍然有消费者依赖于该快照，则该快照将不会在到期时被删除。
 
 {{< hint info >}}
 NOTE: The consumer will prevent expiration of the snapshot. You can specify 'consumer.expiration-time' to manage the 

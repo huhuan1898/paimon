@@ -26,41 +26,37 @@ under the License.
 
 # Concurrency Control
 
-Paimon supports optimistic concurrency for multiple concurrent write jobs.
+Paimon 支持对多个并发写作业进行乐观并发。
 
-Each job writes data at its own pace and generates a new snapshot based on the current snapshot by applying incremental
-files (deleting or adding files) at the time of committing.
+每个作业都以自己的速度写入数据，并在提交时刻通过应用增量文件(删除或添加文件)基于当前快照生成新的快照。
 
-There may be two types of commit failures here:
-1. Snapshot conflict: the snapshot id has been preempted, the table has generated a new snapshot from another job. OK, let's commit again.
-2. Files conflict: The file that this job wants to delete has been deleted by another jobs. At this point, the job can only fail. (For streaming jobs, it will fail and restart, intentionally failover once)
+这里可能有两种类型的提交失败:
+1. 快照冲突: 快照id被抢占，表从其他作业生成了新的快照。好吧，我们再来一次。
+2. 文件冲突: 此作业要删除的文件已被其他作业删除。此时，作业只能失败。(对于流作业，它将失败
 
 ## Snapshot conflict
 
-Paimon's snapshot ID is unique, so as long as the job writes its snapshot file to the file system, it is considered successful.
+Paimon 的快照ID是唯一的，因此只要作业将其快照文件写入文件系统，就认为它成功了。
 
 {{< img src="/img/snapshot-conflict.png">}}
 
-Paimon uses the file system's renaming mechanism to commit snapshots, which is secure for HDFS as it ensures
-transactional and atomic renaming.
+Paimon 使用文件系统的重命名机制来提交快照，这对HDFS来说是安全的，因为它确保了事务性和原子性的重命名。
 
-But for object storage such as OSS and S3, their `'RENAME'` does not have atomic semantic. We need to configure Hive or
-jdbc metastore and enable `'lock.enabled'` option for the catalog. Otherwise, there may be a chance of losing the snapshot.
+但是对于像OSS和S3这样的对象存储，它们的 `RENAME` 没有原子语义。我们需要配置 Hive 或 jdbc metastore 并启用 `lock.enable` 目录选项。
+否则，可能会导致快照丢失。
 
 ## Files conflict
 
-When Paimon commits a file deletion (which is only a logical deletion), it checks for conflicts with the latest snapshot.
-If there are conflicts (which means the file has been logically deleted), it can no longer continue on this commit node,
-so it can only intentionally trigger a failover to restart, and the job will retrieve the latest status from the filesystem
-in the hope of resolving this conflict.
+当 Paimon 提交文件删除(这只是一个逻辑删除)时，它会检查与最新快照的冲突。
+如果存在冲突(这意味着文件在逻辑上已被删除)，它就不能再在此提交节点上继续，
+因此它只能有意地触发故障转移以重新启动，作业将从文件系统检索最新状态，以期解决此冲突。
 
 {{< img src="/img/files-conflict.png">}}
 
-Paimon will ensure that there is no data loss or duplication here, but if two streaming jobs are writing at the same
-time and there are conflicts, you will see that they are constantly restarting, which is not a good thing.
+Paimon 将确保这里没有数据丢失或重复，但如果两个流作业同时写入并且存在冲突，您将看到它们不断重新启动，这不是一件好事。
 
-The essence of conflict lies in deleting files (logically), and deleting files is born from compaction, so as long as
-we close the compaction of the writing job (Set 'write-only' to true) and start a separate job to do the compaction work,
-everything is very good.
+冲突的本质在于删除文件(逻辑上)，而删除文件是从压缩中诞生的，所以只要我们关闭写作业的压缩(将'write-only'设置为true)，并启动一个单独的作业来做压缩工作，一切都很好。
+
+
 
 See [dedicated compaction job]({{< ref "maintenance/dedicated-compaction#dedicated-compaction-job" >}}) for more info.
